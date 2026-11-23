@@ -8,6 +8,7 @@ import (
 
 	"github.com/nebius/gosdk"
 	"github.com/nebius/gosdk/auth"
+	"google.golang.org/grpc/codes"
 )
 
 // ClientConfig holds everything needed to build an authenticated gosdk client.
@@ -72,6 +73,44 @@ func (c *Client) Close() error {
 
 // ParentID returns the project ID the client was built for.
 func (c *Client) ParentID() string { return c.projectID }
+
+// sleepCtx is overridable in tests.
+var sleepCtx = func(ctx context.Context, d time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(d):
+		return nil
+	}
+}
+
+// withExhaustedRetry retries ResourceExhausted responses (quota or rate limit)
+// with the server-provided RetryInfo delay or bounded exponential backoff
+// (FR-016). Non-retryable errors are returned immediately.
+func withExhaustedRetry[T any](ctx context.Context, fn func(context.Context) (T, error)) (T, error) {
+	var zero T
+	const attempts = 8
+	for i := 0; i < attempts; i++ {
+		res, err := fn(ctx)
+		if err == nil {
+			return res, nil
+		}
+		if errorCode(err) != codes.ResourceExhausted || i == attempts-1 {
+			return res, err
+		}
+		if err := sleepCtx(ctx, RetryDelay(err, i)); err != nil {
+			return zero, err
+		}
+	}
+	return zero, nil
+}
+
+func withExhaustedRetryErr(ctx context.Context, fn func(context.Context) error) error {
+	_, err := withExhaustedRetry(ctx, func(ctx context.Context) (struct{}, error) {
+		return struct{}{}, fn(ctx)
+	})
+	return err
+}
 
 // withAuthRetry repeats fn once when the API rejected credentials (FR-003).
 func withAuthRetry[T any](ctx context.Context, fn func(context.Context) (T, error)) (T, error) {

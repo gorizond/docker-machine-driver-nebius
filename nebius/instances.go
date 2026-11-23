@@ -86,8 +86,10 @@ func (c *Client) CreateInstance(ctx context.Context, req *computepb.CreateInstan
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	op, err := withAuthRetry(ctx, func(ctx context.Context) (operations.Operation, error) {
-		return c.sdk.Services().Compute().V1().Instance().Create(ctx, req, conn.WithIdempotencyKey(key))
+	op, err := withExhaustedRetry(ctx, func(ctx context.Context) (operations.Operation, error) {
+		return withAuthRetry(ctx, func(ctx context.Context) (operations.Operation, error) {
+			return c.sdk.Services().Compute().V1().Instance().Create(ctx, req, conn.WithIdempotencyKey(key))
+		})
 	})
 	if err != nil {
 		return nil, err
