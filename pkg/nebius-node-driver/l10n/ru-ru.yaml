@@ -1,0 +1,99 @@
+cluster:
+  provider:
+    nebius: Nebius AI Cloud
+  nebius:
+    errors:
+      unauthorized: "Не авторизовано (401): проверьте ID service account, ID публичного ключа и приватный ключ."
+      forbidden: "Доступ запрещён (403): у service account нет прав на этот проект."
+      notFound: "Не найдено (404): проверьте идентификаторы проекта и ресурса."
+      rateLimited: "Слишком много запросов (429): превышен лимит Nebius API, повторите позже."
+      server: "Nebius API временно недоступен (5xx): повторите позже."
+      listsUnavailable: "Не удалось получить список ресурсов Nebius."
+      invalidPrivateKey: "Приватный ключ не является корректным RSA-ключом в PEM."
+      pkcs1PrivateKey: "Преобразуйте ключ в PKCS#8 (-----BEGIN PRIVATE KEY-----)."
+      tokenResponse: "Обмен на IAM-токен не вернул access token."
+      notAllowed: "{ hostname } отсутствует в whitelistDomains Node Driver."
+  credential:
+    nebius:
+      actions:
+        verify: Проверить учётные данные
+        verifying: Проверка...
+        addToAllowList: Добавить в allow list
+      verified: "Учётные данные проверены: IAM-токен получен."
+      errors:
+        missingRequired: Заполните ID service account, ID публичного ключа, приватный ключ и ID проекта.
+      saId:
+        label: ID service account
+        placeholder: serviceaccount-...
+      publicKeyId:
+        label: ID публичного ключа
+        placeholder: publickey-...
+      privateKey:
+        label: Приватный ключ (PEM)
+        placeholder: "-----BEGIN PRIVATE KEY-----"
+        stored: Приватный ключ сохранён. Введите новый ключ, чтобы заменить его.
+        tooltip: Хранится как private-поле и больше не отображается.
+      projectId:
+        label: ID проекта
+        placeholder: project-...
+      apiEndpoint:
+        label: API endpoint
+        tooltip: "host:port для вызовов Nebius API (по умолчанию api.nebius.cloud:443)."
+  machineConfig:
+    nebius:
+      instance:
+        header: Инстанс
+      network:
+        header: Сеть
+      ssh:
+        header: SSH
+      advanced:
+        header: Дополнительно
+      errors:
+        listsFallback: Списки недоступны, введите идентификаторы вручную.
+      subnetId:
+        label: ID подсети
+        placeholder: vpcsubnet-...
+      platform:
+        label: Платформа
+        placeholder: cpu-d3
+      preset:
+        label: Пресет
+        placeholder: 4vcpu-16gb
+      imageFamily:
+        label: Семейство образов
+        placeholder: ubuntu24.04-driverless
+      imageId:
+        label: ID образа
+        placeholder: computeimage-...
+      image:
+        tooltip: Укажите семейство образов или точный ID образа, но не оба. Образ по умолчанию не задан.
+        conflict: Укажите семейство образов или точный ID образа, но не оба.
+      diskSizeGib:
+        label: Размер загрузочного диска (GiB)
+      diskType:
+        label: Тип загрузочного диска
+      publicIp:
+        label: Публичный IP
+        tooltip: "static сохраняет адрес, dynamic освобождает его после долгой остановки, none оставляет ноду без публичного IP."
+        options:
+          static: Статический
+          dynamic: Динамический
+          none: Нет
+      securityGroups:
+        label: Группы безопасности
+        tooltip: Группы безопасности сетевого интерфейса. Оставьте пустым, чтобы использовать настройки подсети.
+        placeholder: securitygroup-...,securitygroup-...
+      preemptible:
+        label: Preemptible-инстанс
+        warning: Preemptible-инстанс может быть остановлен провайдером в любой момент. Выбор необратим.
+      sshUser:
+        label: SSH-пользователь
+      sshPort:
+        label: SSH-порт
+      createTimeout:
+        label: Таймаут создания
+      deleteTimeout:
+        label: Таймаут удаления
+      timeout:
+        tooltip: "Длительность Go, например 20m или 1h30m."

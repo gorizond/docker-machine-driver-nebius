@@ -1,0 +1,24 @@
+apiVersion: management.cattle.io/v3
+kind: NodeDriver
+metadata:
+  name: nebius
+  annotations:
+    publicCredentialFields: projectId,apiEndpoint
+    privateCredentialFields: saId,publicKeyId,privateKey
+    optionalCredentialFields: projectId,apiEndpoint
+    passwordFields: privateKey
+    defaults: apiEndpoint:api.nebius.cloud:443
+    nodedriver.cattle.io/file-to-field-aliases: privateKey:privateKeyPath
+spec:
+  active: true
+  addCloudCredential: true
+  builtin: false
+  # Filled with the sha256 of the release archive by the release task (T043).
+  checksum: ""
+  description: Nebius AI Cloud node driver
+  displayName: Nebius AI Cloud
+  externalId: ""
+  url: https://github.com/gorizond/docker-machine-driver-nebius/releases/download/v0.0.1/docker-machine-driver-nebius_v0.0.1_linux_amd64.tar.gz
+  whitelistDomains:
+    - api.nebius.cloud
+    - auth.eu.nebius.com

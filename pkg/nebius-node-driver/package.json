@@ -1,0 +1,37 @@
+{
+  "name": "nebius-node-driver",
+  "description": "Rancher UI extension and NodeDriver for Nebius AI Cloud.",
+  "version": "0.0.1",
+  "private": true,
+  "rancher": {
+    "annotations": {
+      "catalog.cattle.io/rancher-version": ">= 2.10.0",
+      "catalog.cattle.io/ui-extensions-version": ">= 3.0.0 < 4.0.0"
+    }
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "@rancher/shell": "^3.x"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "~5.0.0",
+    "@vue/cli-service": "~5.0.0",
+    "@vue/cli-plugin-typescript": "~5.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "scripts": {
+    "dev": "NODE_ENV=dev ./node_modules/.bin/vue-cli-service serve",
+    "build": "./node_modules/.bin/vue-cli-service build",
+    "clean": "./node_modules/@rancher/shell/scripts/clean",
+    "build-pkg": "./node_modules/@rancher/shell/scripts/build-pkg.sh",
+    "serve-pkgs": "./node_modules/@rancher/shell/scripts/serve-pkgs",
+    "publish-pkgs": "bash ../../scripts/publish-pkgs.sh",
+    "parse-tag-name": "./node_modules/@rancher/shell/scripts/extension/parse-tag-name"
+  }
+}

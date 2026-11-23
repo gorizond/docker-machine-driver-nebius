@@ -1,0 +1,7 @@
+bin/
+dist/
+node_modules/
+*.pem
+*.key
+*.log
+.DS_Store

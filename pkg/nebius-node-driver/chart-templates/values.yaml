@@ -1,0 +1,22 @@
+nodeDriver:
+  enabled: true
+  name: nebius
+  displayName: Nebius AI Cloud
+  description: Nebius AI Cloud node driver
+  active: true
+  addCloudCredential: true
+  builtin: false
+  checksum: ""
+  url: ""
+  externalId: ""
+  # v0.0.1 until the release task publishes v0.1.0 (T043).
+  versionOverride: 0.0.1
+  publicCredentialFields: projectId,apiEndpoint
+  privateCredentialFields: saId,publicKeyId,privateKey
+  optionalCredentialFields: projectId,apiEndpoint
+  passwordFields: privateKey
+  defaults: apiEndpoint:api.nebius.cloud:443
+  fileToFieldAliases: privateKey:privateKeyPath
+  whitelistDomains:
+    - api.nebius.cloud
+    - auth.eu.nebius.com

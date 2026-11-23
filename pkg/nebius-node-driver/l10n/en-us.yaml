@@ -1,0 +1,99 @@
+cluster:
+  provider:
+    nebius: Nebius AI Cloud
+  nebius:
+    errors:
+      unauthorized: "Unauthorized (401): check the service account ID, public key ID and private key."
+      forbidden: "Access denied (403): the service account has no permission for this project."
+      notFound: "Not found (404): check the project and resource identifiers."
+      rateLimited: "Too many requests (429): the Nebius API rate limit was exceeded, retry later."
+      server: "Nebius API is temporarily unavailable (5xx): retry later."
+      listsUnavailable: "Could not load the Nebius resource list."
+      invalidPrivateKey: "The private key is not a valid PEM-encoded RSA key."
+      pkcs1PrivateKey: "Convert the key to PKCS#8 (-----BEGIN PRIVATE KEY-----)."
+      tokenResponse: "The IAM token exchange returned no access token."
+      notAllowed: "{ hostname } is not present in the Node Driver whitelistDomains."
+  credential:
+    nebius:
+      actions:
+        verify: Check credentials
+        verifying: Checking...
+        addToAllowList: Add to allow list
+      verified: "Credentials verified: an IAM token was issued."
+      errors:
+        missingRequired: Fill in the service account ID, public key ID, private key and project ID.
+      saId:
+        label: Service account ID
+        placeholder: serviceaccount-...
+      publicKeyId:
+        label: Public key ID
+        placeholder: publickey-...
+      privateKey:
+        label: Private key (PEM)
+        placeholder: "-----BEGIN PRIVATE KEY-----"
+        stored: A private key is stored. Enter a new key to replace it.
+        tooltip: Stored as a private field and never displayed again.
+      projectId:
+        label: Project ID
+        placeholder: project-...
+      apiEndpoint:
+        label: API endpoint
+        tooltip: "host:port used for Nebius API calls (default api.nebius.cloud:443)."
+  machineConfig:
+    nebius:
+      instance:
+        header: Instance
+      network:
+        header: Network
+      ssh:
+        header: SSH
+      advanced:
+        header: Advanced
+      errors:
+        listsFallback: Lists are unavailable, enter identifiers manually.
+      subnetId:
+        label: Subnet ID
+        placeholder: vpcsubnet-...
+      platform:
+        label: Platform
+        placeholder: cpu-d3
+      preset:
+        label: Preset
+        placeholder: 4vcpu-16gb
+      imageFamily:
+        label: Image family
+        placeholder: ubuntu24.04-driverless
+      imageId:
+        label: Image ID
+        placeholder: computeimage-...
+      image:
+        tooltip: Set either an image family or an exact image ID, not both. There is no default image.
+        conflict: Set either an image family or an exact image ID, not both.
+      diskSizeGib:
+        label: Boot disk size (GiB)
+      diskType:
+        label: Boot disk type
+      publicIp:
+        label: Public IP
+        tooltip: "static keeps the address, dynamic releases it after a long stop, none leaves the node without a public IP."
+        options:
+          static: Static
+          dynamic: Dynamic
+          none: None
+      securityGroups:
+        label: Security groups
+        tooltip: Security groups applied to the network interface. Leave empty to use the subnet defaults.
+        placeholder: securitygroup-...,securitygroup-...
+      preemptible:
+        label: Preemptible instance
+        warning: Preemptible instances can be stopped by the provider at any time. The choice is irreversible.
+      sshUser:
+        label: SSH user
+      sshPort:
+        label: SSH port
+      createTimeout:
+        label: Create timeout
+      deleteTimeout:
+        label: Delete timeout
+      timeout:
+        tooltip: "Go duration, for example 20m or 1h30m."
