@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/docker/machine/libmachine/drivers"
@@ -166,7 +167,38 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		}
 		d.Labels = labels
 	}
+	d.applyCredentialEnv()
 	return nil
+}
+
+// applyCredentialEnv fills credential fields that were not supplied as flags.
+// Rancher CAPR exposes cloud-credential fields to the driver process as
+// <DRIVER>_<FIELD> environment variables (e.g. NEBIUS_SA_ID) while machine
+// config fields arrive as flags. Without this fallback the driver would see
+// empty credentials in Rancher node-driver provisioning.
+func (d *Driver) applyCredentialEnv() {
+	if d.SAID == "" {
+		d.SAID = os.Getenv("NEBIUS_SA_ID")
+	}
+	if d.PublicKeyID == "" {
+		d.PublicKeyID = os.Getenv("NEBIUS_PUBLIC_KEY_ID")
+	}
+	if d.PrivateKey == "" && d.PrivateKeyPath == "" {
+		if v := os.Getenv("NEBIUS_PRIVATE_KEY"); v != "" {
+			d.PrivateKey = v
+		}
+		if v := os.Getenv("NEBIUS_PRIVATE_KEY_PATH"); v != "" {
+			d.PrivateKeyPath = v
+		}
+	}
+	if d.ProjectID == "" {
+		d.ProjectID = os.Getenv("NEBIUS_PROJECT_ID")
+	}
+	if d.APIEndpoint == "" {
+		if v := os.Getenv("NEBIUS_API_ENDPOINT"); v != "" {
+			d.APIEndpoint = v
+		}
+	}
 }
 
 // PreCreateCheck validates the static configuration and runs the read-only API
