@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/docker/machine/libmachine/drivers"
@@ -225,8 +224,16 @@ func (d *Driver) GetState() (state.State, error) {
 func (d *Driver) GetSSHHostname() (string, error) { return d.GetIP() }
 
 // GetURL links to the instance in the Nebius console.
+// GetURL returns the Docker daemon URL used by docker-machine for cert checks.
 func (d *Driver) GetURL() (string, error) {
-	return "https://console.nebius.com/projects/" + url.PathEscape(d.ProjectID), nil
+	ip, err := d.GetIP()
+	if err != nil {
+		return "", err
+	}
+	if ip == "" {
+		return "", nil
+	}
+	return fmt.Sprintf("tcp://%s:2376", ip), nil
 }
 
 // apiClient lazily builds the SDK client. It is not safe for concurrent use,

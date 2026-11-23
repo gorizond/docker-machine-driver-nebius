@@ -3,6 +3,7 @@ package nebius
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -195,9 +196,15 @@ func (c *Client) DeleteInstance(ctx context.Context, id string, timeout time.Dur
 // PublicIPv4 returns the first public IPv4 address of an instance, or "".
 func PublicIPv4(instance *computepb.Instance) string {
 	for _, nic := range instance.GetStatus().GetNetworkInterfaces() {
-		if address := nic.GetPublicIpAddress().GetAddress(); address != "" {
-			return address
+		address := nic.GetPublicIpAddress().GetAddress()
+		if address == "" {
+			continue
 		}
+		// The API reports the public address in CIDR form (e.g. "1.2.3.4/32").
+		if ip, _, err := net.ParseCIDR(address); err == nil {
+			return ip.String()
+		}
+		return address
 	}
 	return ""
 }
