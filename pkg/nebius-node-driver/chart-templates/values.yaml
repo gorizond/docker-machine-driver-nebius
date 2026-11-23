@@ -6,8 +6,8 @@ nodeDriver:
   active: true
   addCloudCredential: true
   builtin: false
-  checksum: ""
-  url: ""
+  checksum: "1d9d5e6bb77e72d8660315a8b6e1e02d613bd155083f2f8d0d496a9cde3a687d"
+  url: "https://github.com/gorizond/docker-machine-driver-nebius/releases/download/v0.0.1/docker-machine-driver-nebius_v0.0.1_linux_amd64.tar.gz"
   externalId: ""
   # v0.0.1 until the release task publishes v0.1.0 (T043).
   versionOverride: 0.0.1

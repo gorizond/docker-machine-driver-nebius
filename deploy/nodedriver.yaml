@@ -14,7 +14,7 @@ spec:
   addCloudCredential: true
   builtin: false
   # Filled with the sha256 of the release archive by the release task (T043).
-  checksum: ""
+  checksum: "1d9d5e6bb77e72d8660315a8b6e1e02d613bd155083f2f8d0d496a9cde3a687d"
   description: Nebius AI Cloud node driver
   displayName: Nebius AI Cloud
   externalId: ""
