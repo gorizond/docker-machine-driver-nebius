@@ -13,12 +13,12 @@ spec:
   active: true
   addCloudCredential: true
   builtin: false
-  # Filled with the sha256 of the release archive by the release task (T043).
-  checksum: "1d9d5e6bb77e72d8660315a8b6e1e02d613bd155083f2f8d0d496a9cde3a687d"
+  # v0.1.0 linux/amd64 release archive.
+  checksum: "67584af3b2a8b73d2ad678bb4f528d33f0167b6494412adec8b02952ee52d709"
   description: Nebius AI Cloud node driver
   displayName: Nebius AI Cloud
   externalId: ""
-  url: https://github.com/gorizond/docker-machine-driver-nebius/releases/download/v0.0.1/docker-machine-driver-nebius_v0.0.1_linux_amd64.tar.gz
+  url: https://github.com/gorizond/docker-machine-driver-nebius/releases/download/v0.1.0/docker-machine-driver-nebius_v0.1.0_linux_amd64.tar.gz
   whitelistDomains:
     - api.nebius.cloud
     - auth.eu.nebius.com
