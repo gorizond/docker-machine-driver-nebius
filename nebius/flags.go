@@ -23,9 +23,11 @@ const (
 
 // GetCreateFlags returns the flags exposed by the nebius driver.
 //
-// FR-007: no flag may contain user-data, userdata, custom-data or
-// cloud-config. Otherwise rancher-machine treats the value as a file and
-// stops running WithCustomScript, so rancher-system-agent never installs.
+// nebius-userdata is the single userdata flag required for Rancher's
+// custom-install-script path: rancher-machine detects it by name, reads the
+// file as a cloud-config, merges --custom-install-script into it and skips
+// its own SSH install script. Do not add any other user-data-ish flag;
+// Rancher picks the first match and multiple matches would be ambiguous.
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		// Cloud credentials.
@@ -90,6 +92,10 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:  "nebius-public-ip",
 			Usage: "Public IP mode: static, dynamic or none",
 			Value: defaultPublicIP,
+		},
+		mcnflag.StringFlag{
+			Name:  "nebius-userdata",
+			Usage: "Path to a cloud-config userdata file; Rancher injects the custom install script here",
 		},
 		mcnflag.StringSliceFlag{
 			Name:  "nebius-security-groups",

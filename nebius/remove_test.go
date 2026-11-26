@@ -97,3 +97,24 @@ func TestGetIPModes(t *testing.T) {
 		t.Fatal("expected error for instance without public IPv4")
 	}
 }
+
+func TestGetIPPrivateWithUserData(t *testing.T) {
+	api := &fakeAPI{instances: map[string]*computepb.Instance{
+		"computeinstance-1": testInstance("computeinstance-1", "node-1", ""),
+	}}
+	d := newTestDriver(t, api)
+	d.PublicIP = "none"
+	d.UserDataFile = "/tmp/userdata.yaml"
+	d.InstanceID = "computeinstance-1"
+
+	ip, err := d.GetIP()
+	if err != nil {
+		t.Fatalf("GetIP: %v", err)
+	}
+	if ip != "10.0.0.10" {
+		t.Errorf("GetIP = %q, want private IP 10.0.0.10", ip)
+	}
+	if d.IPAddress != "10.0.0.10" {
+		t.Errorf("GetIP did not cache the private address: %q", d.IPAddress)
+	}
+}

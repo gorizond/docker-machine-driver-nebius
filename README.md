@@ -20,16 +20,16 @@ Rancher node driver for Nebius AI Cloud (RKE2/K3s). Creates one Nebius instance 
 
 All flags are prefixed `--nebius-`. Required: `sa-id`, `public-key-id`, `private-key` or `private-key-path`, `project-id`, `subnet-id`, `platform`, `preset`, and exactly one of `image-family`/`image-id`.
 
-Optional defaults: `disk-size-gib=50`, `disk-type=NETWORK_SSD`, `public-ip=static`, `ssh-user=ubuntu`, `ssh-port=22`, `create-timeout=20m`, `delete-timeout=5m`, `api-endpoint=api.nebius.cloud:443`, `security-groups`, `preemptible=false`, `labels`.
+Optional defaults: `disk-size-gib=50`, `disk-type=NETWORK_SSD`, `public-ip=static`, `ssh-user=ubuntu`, `ssh-port=22`, `create-timeout=20m`, `delete-timeout=5m`, `api-endpoint=api.nebius.cloud:443`, `security-groups`, `preemptible=false`, `labels`, `userdata`.
 
-There is deliberately **no** user-data/cloud-config flag: without it `rancher-machine` runs its install script over SSH and Rancher registers the node.
+`--nebius-userdata` is a path to a `#cloud-config`. Rancher's custom-install-script path detects this flag, merges `--custom-install-script` into the file and passes the merged path; the driver then merges its SSH key and sends the result as `cloudInitUserData`. When the flag is set, the driver skips its own SSH wait (Rancher installs `rancher-system-agent` itself). Private-only mode (`public-ip=none`) requires `userdata`.
 
 ## Behavior
 
-- **Create**: preflight (project, subnet, image, platform/preset, security groups) → adopt by deterministic name if it exists → otherwise create with a stable idempotency key and ownership labels → wait `RUNNING` → wait for SSH. Any failure after this call created the instance triggers a compensating delete.
+- **Create**: preflight (project, subnet, image, platform/preset, security groups) → adopt by deterministic name if it exists → otherwise create with a stable idempotency key and ownership labels → wait `RUNNING` → wait for SSH (skipped when `userdata` is set). Any failure after this call created the instance triggers a compensating delete.
 - **Remove**: idempotent; `NotFound` counts as success; managed disks are deleted with the instance.
 - **Power**: Start, Stop; Restart = stop → wait → start; Kill = stop (the public API has no hard-kill).
-- **GetIP**: public IPv4; `public-ip=none` fails explicitly.
+- **GetIP**: public IPv4; with `public-ip=none` and `userdata` it returns the private IPv4; other `public-ip=none` configurations fail explicitly.
 - **Auth**: service account JWT → IAM token; the SDK refreshes the token automatically.
 
 ## Troubleshooting

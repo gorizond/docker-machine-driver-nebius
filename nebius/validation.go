@@ -2,8 +2,39 @@ package nebius
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 )
+
+// maxUserDataBytes caps how much of a userdata file is read for validation.
+const maxUserDataBytes = 64 * 1024
+
+// validateUserDataFile checks that path is a regular file whose content
+// starts with #cloud-config. Errors name the path and never include content.
+func validateUserDataFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("nebius: userdata %s: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("nebius: userdata %s: not a regular file", path)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("nebius: userdata %s: %w", path, err)
+	}
+	defer f.Close()
+
+	raw, err := io.ReadAll(io.LimitReader(f, maxUserDataBytes))
+	if err != nil {
+		return fmt.Errorf("nebius: userdata %s: %w", path, err)
+	}
+	if !strings.HasPrefix(string(raw), "#cloud-config") {
+		return fmt.Errorf("nebius: userdata %s must start with #cloud-config", path)
+	}
+	return nil
+}
 
 // validateStatic checks the machine configuration without any API call.
 func (d *Driver) validateStatic() error {
@@ -32,6 +63,7 @@ func (d *Driver) validateStatic() error {
 	default:
 		problems = append(problems, "public-ip must be static, dynamic or none")
 	}
+	add(d.PublicIP == "none" && d.UserDataFile == "", "public-ip=none requires userdata (Rancher custom install script)")
 	add(d.SSHUser == "", "ssh-user is required")
 	add(d.SSHPort < 1 || d.SSHPort > 65535, "ssh-port must be between 1 and 65535")
 	add(d.CreateTimeout <= 0, "create-timeout must be greater than zero")

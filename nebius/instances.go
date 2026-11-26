@@ -210,3 +210,19 @@ func PublicIPv4(instance *computepb.Instance) string {
 	}
 	return ""
 }
+
+// PrivateIPv4 returns the private IPv4 address of the first NIC, or "".
+func PrivateIPv4(instance *computepb.Instance) string {
+	nics := instance.GetStatus().GetNetworkInterfaces()
+	if len(nics) == 0 {
+		return ""
+	}
+	address := nics[0].GetIpAddress().GetAddress()
+	if address == "" {
+		return ""
+	}
+	if ip, _, err := net.ParseCIDR(address); err == nil {
+		return ip.String()
+	}
+	return address
+}

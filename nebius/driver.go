@@ -58,6 +58,11 @@ type Driver struct {
 	CreateTimeout  time.Duration     `json:"createTimeout,omitempty"`
 	DeleteTimeout  time.Duration     `json:"deleteTimeout,omitempty"`
 
+	// UserDataFile is a path to a #cloud-config supplied through Rancher's
+	// custom-install-script path. When set, the driver merges its SSH key into
+	// that file instead of rendering its own cloud-config.
+	UserDataFile string `json:"userDataFile,omitempty"`
+
 	// InstanceID is the Nebius instance backing this machine, once created
 	// or adopted. Empty means the machine has no instance yet.
 	InstanceID string `json:"instanceId,omitempty"`
@@ -136,6 +141,9 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	if v := opts.String("nebius-public-ip"); v != "" {
 		d.PublicIP = v
 	}
+	if v := opts.String("nebius-userdata"); v != "" {
+		d.UserDataFile = v
+	}
 	if v := opts.StringSlice("nebius-security-groups"); len(v) > 0 {
 		d.SecurityGroups = v
 	}
@@ -207,6 +215,11 @@ func (d *Driver) PreCreateCheck() error {
 	if err := d.validateStatic(); err != nil {
 		return err
 	}
+	if d.UserDataFile != "" {
+		if err := validateUserDataFile(d.UserDataFile); err != nil {
+			return err
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), preflightTimeout)
 	defer cancel()
@@ -252,7 +265,8 @@ func (d *Driver) GetState() (state.State, error) {
 	return MachineState(instance), nil
 }
 
-// GetSSHHostname returns the public IPv4 address of the machine.
+// GetSSHHostname returns the address from GetIP: the public IPv4 address, or
+// the private one in userdata/private-only mode.
 func (d *Driver) GetSSHHostname() (string, error) { return d.GetIP() }
 
 // GetURL links to the instance in the Nebius console.
@@ -289,4 +303,7 @@ func (d *Driver) apiClient(ctx context.Context) (nebiusAPI, error) {
 	return client, nil
 }
 
-var errNoPublicIP = errors.New("nebius: machine has no public IPv4 address")
+var (
+	errNoPublicIP  = errors.New("nebius: machine has no public IPv4 address")
+	errNoPrivateIP = errors.New("nebius: machine has no IPv4 address")
+)

@@ -53,15 +53,15 @@ func (d *Driver) Remove() (err error) {
 	return nil
 }
 
-// GetIP returns the public IPv4 address, refreshing it from the API when the
-// cached value is empty. Mode none and a missing address are explicit errors
-// (FR-010), never an empty answer.
+// GetIP returns the machine IPv4 address, refreshing it from the API when the
+// cached value is empty. In userdata/private-only mode it returns the private
+// address; a missing address is an explicit error, never an empty answer.
 func (d *Driver) GetIP() (string, error) {
-	if d.PublicIP == "none" {
-		return "", fmt.Errorf("%w (public-ip=none)", errNoPublicIP)
-	}
 	if d.IPAddress != "" {
 		return d.IPAddress, nil
+	}
+	if d.PublicIP == "none" && d.UserDataFile == "" {
+		return "", fmt.Errorf("%w (public-ip=none)", errNoPublicIP)
 	}
 	if d.InstanceID == "" {
 		return "", errors.New("nebius: machine has no instance yet")
@@ -77,6 +77,17 @@ func (d *Driver) GetIP() (string, error) {
 	instance, err := api.GetInstance(ctx, d.InstanceID)
 	if err != nil {
 		return "", fmt.Errorf("nebius: get instance %s: %s", d.InstanceID, MapError(err).Error())
+	}
+	if d.PublicIP == "none" {
+		ip := PublicIPv4(instance)
+		if ip == "" {
+			ip = PrivateIPv4(instance)
+		}
+		if ip == "" {
+			return "", errNoPrivateIP
+		}
+		d.IPAddress = ip
+		return ip, nil
 	}
 	ip := PublicIPv4(instance)
 	if ip == "" {

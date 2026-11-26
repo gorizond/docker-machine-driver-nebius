@@ -3,6 +3,8 @@ package nebius
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -91,13 +93,15 @@ func (f *fakeAPI) StopInstance(_ context.Context, id string, _ time.Duration) er
 func testInstance(id, name, publicIP string) *computepb.Instance {
 	instance := &computepb.Instance{
 		Metadata: &commonpb.ResourceMetadata{Id: id, ParentId: "project-test", Name: name},
-		Status:   &computepb.InstanceStatus{State: computepb.InstanceStatus_RUNNING},
+		Status: &computepb.InstanceStatus{
+			State: computepb.InstanceStatus_RUNNING,
+			NetworkInterfaces: []*computepb.NetworkInterfaceStatus{{
+				IpAddress: &computepb.IPAddressStatus{Address: "10.0.0.10"},
+			}},
+		},
 	}
 	if publicIP != "" {
-		instance.Status.NetworkInterfaces = []*computepb.NetworkInterfaceStatus{{
-			IpAddress:       &computepb.IPAddressStatus{Address: "10.0.0.10"},
-			PublicIpAddress: &computepb.PublicIPAddressStatus{Address: publicIP},
-		}}
+		instance.Status.NetworkInterfaces[0].PublicIpAddress = &computepb.PublicIPAddressStatus{Address: publicIP}
 	}
 	return instance
 }
@@ -253,6 +257,118 @@ func TestCreateStopsOnPreflightFailure(t *testing.T) {
 	}
 	if api.createCalls != 0 {
 		t.Errorf("create calls = %d, want 0 after preflight failure", api.createCalls)
+	}
+}
+
+func TestCreatePrivateIPWithUserData(t *testing.T) {
+	userdataPath := filepath.Join(t.TempDir(), "userdata.yaml")
+	raw := "#cloud-config\nruncmd:\n  - echo hello\nwrite_files:\n  - path: /etc/motd\n    content: hi\n"
+	if err := os.WriteFile(userdataPath, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	api := &fakeAPI{created: testInstance("computeinstance-1", "node-1", "")}
+	d := NewDriver("node-1", t.TempDir())
+	opts := fullOptions()
+	opts["nebius-public-ip"] = "none"
+	opts["nebius-userdata"] = userdataPath
+	if err := d.SetConfigFromFlags(opts); err != nil {
+		t.Fatal(err)
+	}
+	d.client = api
+	d.waitSSH = func(context.Context, string, string, ssh.Signer, time.Duration) error {
+		t.Error("waitSSH must not be called when userdata is set")
+		return nil
+	}
+
+	if err := d.Create(); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if api.createCalls != 1 {
+		t.Fatalf("create calls = %d, want 1", api.createCalls)
+	}
+	if d.IPAddress != "10.0.0.10" {
+		t.Errorf("IPAddress = %q, want private IP 10.0.0.10", d.IPAddress)
+	}
+	cloudInit := api.createReq.GetSpec().GetCloudInitUserData()
+	for _, want := range []string{"runcmd", "write_files", "ssh_authorized_keys"} {
+		if !strings.Contains(cloudInit, want) {
+			t.Errorf("cloud-init missing %q", want)
+		}
+	}
+	if nic := api.createReq.GetSpec().GetNetworkInterfaces()[0]; nic.GetPublicIpAddress() != nil {
+		t.Errorf("private-only request has a public IP: %v", nic.GetPublicIpAddress())
+	}
+	if len(api.deleteCalls) != 0 {
+		t.Errorf("unexpected delete calls: %v", api.deleteCalls)
+	}
+}
+
+func TestCreateNoneWithoutUserDataFails(t *testing.T) {
+	api := &fakeAPI{}
+	d := NewDriver("node-1", t.TempDir())
+	opts := fullOptions()
+	opts["nebius-public-ip"] = "none"
+	if err := d.SetConfigFromFlags(opts); err != nil {
+		t.Fatal(err)
+	}
+	d.client = api
+
+	err := d.Create()
+	if err == nil {
+		t.Fatal("expected error for public-ip=none without userdata")
+	}
+	if !strings.Contains(err.Error(), "userdata") {
+		t.Errorf("error does not mention userdata: %v", err)
+	}
+	if api.preflightCalls != 0 {
+		t.Errorf("preflight calls = %d, want 0", api.preflightCalls)
+	}
+	if api.createCalls != 0 || len(api.deleteCalls) != 0 {
+		t.Errorf("must not create or delete: create=%d delete=%v", api.createCalls, api.deleteCalls)
+	}
+}
+
+func TestCreateMissingUserDataFileFails(t *testing.T) {
+	api := &fakeAPI{}
+	d := NewDriver("node-1", t.TempDir())
+	opts := fullOptions()
+	opts["nebius-userdata"] = filepath.Join(t.TempDir(), "missing.yaml")
+	if err := d.SetConfigFromFlags(opts); err != nil {
+		t.Fatal(err)
+	}
+	d.client = api
+
+	err := d.Create()
+	if err == nil || !strings.Contains(err.Error(), "userdata") {
+		t.Fatalf("expected missing-userdata error, got %v", err)
+	}
+	if api.createCalls != 0 || len(api.deleteCalls) != 0 {
+		t.Errorf("must not create or delete: create=%d delete=%v", api.createCalls, api.deleteCalls)
+	}
+}
+
+func TestCreateNonCloudConfigUserDataFails(t *testing.T) {
+	userdataPath := filepath.Join(t.TempDir(), "userdata.sh")
+	if err := os.WriteFile(userdataPath, []byte("#!/bin/bash\necho hi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	api := &fakeAPI{}
+	d := NewDriver("node-1", t.TempDir())
+	opts := fullOptions()
+	opts["nebius-userdata"] = userdataPath
+	if err := d.SetConfigFromFlags(opts); err != nil {
+		t.Fatal(err)
+	}
+	d.client = api
+
+	err := d.Create()
+	if err == nil || !strings.Contains(err.Error(), "cloud-config") {
+		t.Fatalf("expected non-cloud-config error, got %v", err)
+	}
+	if api.createCalls != 0 || len(api.deleteCalls) != 0 {
+		t.Errorf("must not create or delete: create=%d delete=%v", api.createCalls, api.deleteCalls)
 	}
 }
 

@@ -1,6 +1,8 @@
 package nebius
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,15 +39,20 @@ func TestCreateFlagsAreNamespaced(t *testing.T) {
 	}
 }
 
-func TestCreateFlagsForbidUserData(t *testing.T) {
-	forbidden := []string{"user-data", "userdata", "custom-data", "cloud-config"}
+func TestCreateFlagsSingleUserDataFlag(t *testing.T) {
+	markers := []string{"user-data", "userdata", "custom-data", "cloud-config"}
+	var found []string
 	for _, flag := range NewDriver("node-1", "/tmp/store").GetCreateFlags() {
 		name := strings.ToLower(flag.String())
-		for _, marker := range forbidden {
+		for _, marker := range markers {
 			if strings.Contains(name, marker) {
-				t.Errorf("flag %q contains forbidden marker %q (FR-007)", name, marker)
+				found = append(found, name)
+				break
 			}
 		}
+	}
+	if len(found) != 1 || found[0] != "nebius-userdata" {
+		t.Fatalf("userdata flags = %v, want exactly [nebius-userdata]", found)
 	}
 }
 
@@ -65,6 +72,7 @@ func TestCreateFlagsExactSet(t *testing.T) {
 		"nebius-disk-size-gib",
 		"nebius-disk-type",
 		"nebius-public-ip",
+		"nebius-userdata",
 		"nebius-security-groups",
 		"nebius-preemptible",
 		"nebius-ssh-user",
@@ -100,6 +108,7 @@ func TestCreateFlagDefaults(t *testing.T) {
 		"nebius-disk-size-gib":  50,
 		"nebius-disk-type":      "NETWORK_SSD",
 		"nebius-public-ip":      "static",
+		"nebius-userdata":       "",
 		"nebius-ssh-user":       "ubuntu",
 		"nebius-ssh-port":       22,
 		"nebius-create-timeout": "20m",
@@ -139,7 +148,9 @@ func fullOptions() fakeOptions {
 
 func TestSetConfigFromFlags(t *testing.T) {
 	d := NewDriver("node-1", "/tmp/store")
-	if err := d.SetConfigFromFlags(fullOptions()); err != nil {
+	opts := fullOptions()
+	opts["nebius-userdata"] = "/tmp/userdata.yaml"
+	if err := d.SetConfigFromFlags(opts); err != nil {
 		t.Fatalf("SetConfigFromFlags: %v", err)
 	}
 	if d.SAID != "serviceaccount-test" || d.PublicKeyID != "publickey-test" || d.ProjectID != "project-test" {
@@ -157,6 +168,9 @@ func TestSetConfigFromFlags(t *testing.T) {
 	}
 	if len(d.SecurityGroups) != 2 || len(d.Labels) != 2 || d.Labels["team"] != "test" {
 		t.Errorf("groups/labels not parsed: %+v", d)
+	}
+	if d.UserDataFile != "/tmp/userdata.yaml" {
+		t.Errorf("userdata path not parsed: %q", d.UserDataFile)
 	}
 	if err := d.validateStatic(); err != nil {
 		t.Errorf("validateStatic on full config: %v", err)
@@ -237,5 +251,52 @@ func TestPreCreateCheckPublicIP(t *testing.T) {
 	}
 	if err := d.PreCreateCheck(); err == nil {
 		t.Error("expected error for invalid public-ip mode")
+	}
+}
+
+func TestValidateStaticRequiresUserDataForNone(t *testing.T) {
+	d := NewDriver("node-1", "/tmp/store")
+	opts := fullOptions()
+	opts["nebius-public-ip"] = "none"
+	if err := d.SetConfigFromFlags(opts); err != nil {
+		t.Fatal(err)
+	}
+	err := d.validateStatic()
+	if err == nil || !strings.Contains(err.Error(), "userdata") {
+		t.Fatalf("expected userdata requirement, got %v", err)
+	}
+}
+
+func TestValidateUserDataFile(t *testing.T) {
+	valid := filepath.Join(t.TempDir(), "userdata.yaml")
+	if err := os.WriteFile(valid, []byte("#cloud-config\nruncmd:\n  - echo hi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewDriver("node-1", "/tmp/store")
+	opts := fullOptions()
+	opts["nebius-public-ip"] = "none"
+	opts["nebius-userdata"] = valid
+	if err := d.SetConfigFromFlags(opts); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.validateStatic(); err != nil {
+		t.Errorf("validateStatic rejected valid userdata config: %v", err)
+	}
+	if err := validateUserDataFile(d.UserDataFile); err != nil {
+		t.Errorf("validateUserDataFile rejected valid file: %v", err)
+	}
+
+	bad := filepath.Join(t.TempDir(), "bad.yaml")
+	if err := os.WriteFile(bad, []byte("#!/bin/bash\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateUserDataFile(bad); err == nil || !strings.Contains(err.Error(), bad) {
+		t.Errorf("non-cloud-config error = %v, want error naming %s", err, bad)
+	}
+
+	missing := filepath.Join(t.TempDir(), "missing.yaml")
+	if err := validateUserDataFile(missing); err == nil || !strings.Contains(err.Error(), missing) {
+		t.Errorf("missing-file error = %v, want error naming %s", err, missing)
 	}
 }

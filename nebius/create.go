@@ -89,8 +89,15 @@ func (d *Driver) Create() (err error) {
 	}
 
 	ip := PublicIPv4(instance)
+	if ip == "" && d.PublicIP == "none" && d.UserDataFile != "" {
+		ip = PrivateIPv4(instance)
+	}
 	if ip == "" {
-		err = fmt.Errorf("%w (public-ip=%s)", errNoPublicIP, d.PublicIP)
+		if d.PublicIP == "none" {
+			err = fmt.Errorf("%w (public-ip=none)", errNoPrivateIP)
+		} else {
+			err = fmt.Errorf("%w (public-ip=%s)", errNoPublicIP, d.PublicIP)
+		}
 		if created {
 			err = d.compensate(api, err)
 		}
@@ -98,26 +105,41 @@ func (d *Driver) Create() (err error) {
 	}
 	d.IPAddress = ip
 
-	waitSSH := d.waitSSH
-	if waitSSH == nil {
-		waitSSH = waitForSSH
-	}
-	address := net.JoinHostPort(ip, strconv.Itoa(d.SSHPort))
-	if err = waitSSH(ctx, address, d.SSHUser, signer, d.CreateTimeout); err != nil {
-		if created {
-			err = d.compensate(api, err)
+	// With userdata, Rancher runs its install script and there may be no
+	// public IP; the driver's own SSH probe is intentionally skipped.
+	if d.UserDataFile == "" {
+		waitSSH := d.waitSSH
+		if waitSSH == nil {
+			waitSSH = waitForSSH
 		}
-		return err
+		address := net.JoinHostPort(ip, strconv.Itoa(d.SSHPort))
+		if err = waitSSH(ctx, address, d.SSHUser, signer, d.CreateTimeout); err != nil {
+			if created {
+				err = d.compensate(api, err)
+			}
+			return err
+		}
 	}
 	return nil
 }
 
+// renderCloudInit renders the driver's minimal cloud-config, or merges the
+// driver SSH user into the cloud-config supplied by Rancher.
+func (d *Driver) renderCloudInit(authorizedKey string) (string, error) {
+	cfg := CloudInit{User: d.SSHUser, SSHAuthorizedKeys: []string{authorizedKey}}
+	if d.UserDataFile == "" {
+		return RenderCloudInit(cfg)
+	}
+	raw, err := os.ReadFile(d.UserDataFile)
+	if err != nil {
+		return "", fmt.Errorf("nebius: read userdata %s: %w", d.UserDataFile, err)
+	}
+	return MergeUserData(string(raw), cfg)
+}
+
 func (d *Driver) createInstance(ctx context.Context, api nebiusAPI, name string, signer ssh.Signer) (*computepb.Instance, error) {
 	authorizedKey := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
-	cloudInit, err := RenderCloudInit(CloudInit{
-		User:              d.SSHUser,
-		SSHAuthorizedKeys: []string{authorizedKey},
-	})
+	cloudInit, err := d.renderCloudInit(authorizedKey)
 	if err != nil {
 		return nil, err
 	}
